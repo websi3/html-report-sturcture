@@ -3,6 +3,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def flatten_tools(data):
+    """Recursively flatten nested lists of tool dictionaries."""
+    result = []
+    for item in data:
+        if isinstance(item, list):
+            result.extend(flatten_tools(item))
+        elif isinstance(item, dict):
+            result.append(item)
+    return result
+
+
 def generate_html_report(json_path: str, output_path: str):
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -10,13 +21,8 @@ def generate_html_report(json_path: str, output_path: str):
     project = data.get("project", "Untitled Project")
     tools_data = data.get("tools", [])
 
-    # Flatten nested lists
-    flattened = []
-    for t in tools_data:
-        if isinstance(t, list):
-            flattened.extend(t)
-        else:
-            flattened.append(t)
+    # Flatten nested lists safely
+    flattened = flatten_tools(tools_data)
 
     # Filter out unknown or empty workflow entries
     flattened = [t for t in flattened if t.get("workflow") not in ["", "unknown", "Unknown", None]]
