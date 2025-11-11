@@ -9,8 +9,6 @@ def generate_html_report(json_path, output_path):
     project = data.get("project", "Unknown Project")
 
     tools_data = data.get("tools", [])
-
-    # 🔹 Flatten nested lists if needed
     flattened = []
     for t in tools_data:
         if isinstance(t, list):
@@ -18,53 +16,125 @@ def generate_html_report(json_path, output_path):
         else:
             flattened.append(t)
 
+    timestamp = datetime.utcnow().isoformat() + "Z"
+
+    css = """
+    <style>
+    :root {
+        --bg: #0f1724;
+        --card: #0b1220;
+        --muted: #94a3b8;
+        --accent: #60a5fa;
+        --good: #10b981;
+        --bad: #ef4444;
+        --glass: rgba(255,255,255,0.05);
+    }
+    body {
+        background: linear-gradient(180deg,#071027 0%, #04111b 100%);
+        color: #e6eef8;
+        font-family: Inter,Segoe UI,Helvetica,Arial,sans-serif;
+        padding: 24px;
+    }
+    .container {
+        max-width: 950px;
+        margin: 24px auto;
+        padding: 24px;
+        background: var(--card);
+        border-radius: 14px;
+        box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+    }
+    h1 { color: var(--accent); margin-bottom: 4px; font-size: 26px; }
+    .meta { color: var(--muted); margin-bottom: 12px; }
+    .section {
+        background: var(--glass);
+        border-radius: 10px;
+        padding: 16px;
+        margin-top: 20px;
+    }
+    .section h2 {
+        color: var(--accent);
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+    .tool-box {
+        background: rgba(255,255,255,0.03);
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        border-left: 4px solid var(--accent);
+    }
+    .tool-header {
+        font-weight: bold;
+        color: var(--accent);
+        font-size: 16px;
+        margin-bottom: 6px;
+    }
+    .tool-info {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    .footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 30px;
+    }
+    </style>
+    """
+
+    header_html = f"""
+    <header style='display:flex;align-items:center;gap:12px;margin-bottom:8px'>
+        <div style='font-family:monospace;font-weight:700;color:#60a5fa;font-size:26px'>WEBSI3</div>
+        <div style='color:#94a3b8;margin-left:8px;font-size:14px'>Vulnerability Scanner — Project Report</div>
+    </header>
+    """
+
     html = f"""
+    <!doctype html>
     <html>
     <head>
-        <meta charset='utf-8'>
-        <title>Project Report - {project}</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 40px; background-color: #fafafa; }}
-            h1 {{ color: #2c3e50; }}
-            table {{ border-collapse: collapse; width: 100%; }}
-            th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
-            th {{ background-color: #e0e0e0; }}
-            tr:nth-child(even) {{ background-color: #f9f9f9; }}
-        </style>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>{project} - Project Report</title>
+        {css}
     </head>
     <body>
-        <h1> Project Report: {project}</h1>
-        <p><b>Generated on:</b> {datetime.utcnow().isoformat()} UTC</p>
-        <h2> Tools Summary</h2>
-        <table>
-            <tr>
-                <th>Workflow</th>
-                <th>Run ID</th>
-                <th>Domain</th>
-                <th>Timestamp</th>
-                <th>File Count</th>
-            </tr>
+        <div class="container">
+            {header_html}
+            <h1>Project Report: {project}</h1>
+            <div class="meta">Generated on: {timestamp}</div>
+            <div class="section">
+                <h2>🧰 Tools Summary</h2>
     """
 
     if not flattened:
-        html += "<tr><td colspan='5'><i>No tools data found</i></td></tr>"
+        html += "<p class='tool-info'>No tools data found.</p>"
     else:
-        for tool in flattened:
-            if isinstance(tool, dict):
-                html += f"""
-                <tr>
-                    <td>{tool.get('workflow','')}</td>
-                    <td>{tool.get('run_id','')}</td>
-                    <td>{tool.get('domain','')}</td>
-                    <td>{tool.get('timestamp','')}</td>
-                    <td>{tool.get('file_count','')}</td>
-                </tr>
-                """
+        for i, tool in enumerate(flattened, start=1):
+            if not isinstance(tool, dict):
+                continue
+            workflow = tool.get("workflow", "Unknown")
+            run_id = tool.get("run_id", "")
+            domain = tool.get("domain", "")
+            ts = tool.get("timestamp", "")
+            fc = tool.get("file_count", "")
+            html += f"""
+            <div class="tool-box">
+                <div class="tool-header">#{i} — {workflow}</div>
+                <div class="tool-info">
+                    <b>Run ID:</b> {run_id}<br>
+                    <b>Domain:</b> {domain}<br>
+                    <b>Timestamp:</b> {ts}<br>
+                    <b>File Count:</b> {fc}
+                </div>
+            </div>
+            """
 
-    html += """
-        </table>
-        <hr>
-        <p> <i>HTML report generated successfully.</i></p>
+    html += f"""
+            </div>
+            <div class="footer">Generated by <b>Websi3</b> — All reports stored securely in S3</div>
+        </div>
     </body>
     </html>
     """
@@ -76,5 +146,4 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: python generate_html_report.py input.json output.html")
         sys.exit(1)
-
     generate_html_report(sys.argv[1], sys.argv[2])
